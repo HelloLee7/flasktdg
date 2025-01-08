@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from models import db, User, Todo  # models.py에서 모델 가져오기
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'helloolleh'
@@ -23,11 +24,10 @@ class User(db.Model, UserMixin):
     def check_password(self, password):
         return check_password_hash(self.password, password)
 
-class Todo(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    content = db.Column(db.String(200), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref=db.backref('todos', lazy=True))
+# todo 모델 추가해야함
+
+
+
 
 @login_manager.user_loader
 def load_user(user_id):
