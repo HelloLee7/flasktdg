@@ -1,15 +1,33 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from models import db, Todo, User
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todo.db'
-app.config['SECRET_KEY'] = 'hello'
-db.init_app(app)
+app.config['SECRET_KEY'] = 'helloolleh'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
+db = SQLAlchemy(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    password = db.Column(db.String(150), nullable=False)
+
+    def set_password(self, password):
+        self.password = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password, password)
+
+class Todo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.String(200), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('todos', lazy=True))
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -23,7 +41,7 @@ with app.app_context():
 @app.route('/')
 @login_required
 def index():
-    todos = Todo.query.all()
+    todos = Todo.query.filter_by(user_id=current_user.id).all()
     return render_template('index.html', todos=todos)
 
 # 새로운 할 일 생성 (Create)
@@ -33,7 +51,7 @@ def add():
     content = request.form['content']
     if not content:
         return '살려주시오 날 집에 보내다오!!', 400
-    new_todo = Todo(content=content)
+    new_todo = Todo(content=content, user_id=current_user.id)
     db.session.add(new_todo)
     db.session.commit()
     return redirect(url_for('index'))
@@ -43,6 +61,8 @@ def add():
 @login_required
 def delete(id):
     todo_to_delete = Todo.query.get_or_404(id)
+    if todo_to_delete.user_id != current_user.id:
+        return '권한이 없습니다.', 403
     db.session.delete(todo_to_delete)
     db.session.commit()
     return redirect(url_for('index'))
@@ -53,14 +73,10 @@ def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists')
-            return redirect(url_for('register'))
         new_user = User(username=username)
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
-        flash('Registration successful')
         return redirect(url_for('login'))
     return render_template('register.html')
 
@@ -72,7 +88,7 @@ def login():
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
         if user is None or not user.check_password(password):
-            flash('Invalid username or password')
+            flash('이름이나 비밀번호가 존재하지 않습니다!')
             return redirect(url_for('login'))
         login_user(user)
         return redirect(url_for('index'))
@@ -86,4 +102,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)    
+    app.run(debug=True)
