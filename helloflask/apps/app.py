@@ -4,7 +4,7 @@ from models import db, Todo, User
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todo.db'
-app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SECRET_KEY'] = 'hello'
 db.init_app(app)
 
 login_manager = LoginManager()
